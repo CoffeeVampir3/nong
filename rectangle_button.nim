@@ -8,46 +8,42 @@ type
         text*: string
         textColor*: Color
         bgColor*: Color
+        onClick*: proc() {.closure.}
 
-proc wrapText(text: string, maxWidth: float32, fontSize: int32): seq[string] =
-    result = @[]
+proc wrapText(text: string, maxWidth: int32, fontSize: int32): seq[string] =
+    var lines: seq[string] = @[]
     var currentLine = ""
+
     for word in text.split():
-        let wordWidth = measureText(cstring(currentLine & " " & word),
-        fontSize).float32
-        if wordWidth > maxWidth:
-            if currentLine != "":
-                result.add(currentLine)
-                currentLine = word
+        let lineWithWord = if currentLine.len > 0: currentLine & " " & word else: word
+        if measureText(lineWithWord, fontSize) <= maxWidth:
+            currentLine = lineWithWord
         else:
-            if currentLine != "":
-                currentLine &= " "
-                currentLine &= word
-        if currentLine != "":
-            result.add(currentLine)
+            if currentLine.len > 0:
+                lines.add(currentLine)
+                currentLine = word
+    if currentLine.len > 0:
+        lines.add(currentLine)
+    result = lines
 
 proc drawButton*(btn: RectButton, screenWidth, screenHeight: int32) =
-    drawRectangle(
-        int32(btn.x * float32(screenWidth)),
-        int32(btn.y * float32(screenHeight)),
-        int32(btn.width * float32(screenWidth)),
-        int32(btn.height * float32(screenHeight)),
-        btn.bgColor
-    )
-    const fontSize = 20
-    let padding = 5.0
-    let wrappedText = wrapText(
-        btn.text,
-        btn.width * float32(screenWidth) - padding * 2,
-        fontSize
-    )
-    var yOffset = 0.0
-    for line in wrappedText:
-        drawText(
-            cstring(line),
-            int32(btn.x * float32(screenWidth) + padding),
-            int32(btn.y * float32(screenHeight) + padding + yOffset),
-            fontSize,
-            btn.textColor
-        )
-        yOffset += fontSize.float32 * 1.2 # Add some line spacing
+  let worldX = int32(btn.x * float32(screenWidth))
+  let worldY = int32(btn.y * float32(screenHeight))
+  let worldWidth = int32(btn.width * float32(screenWidth))
+  let worldHeight = int32(btn.height * float32(screenHeight))
+  
+  drawRectangle(worldX, worldY, worldWidth, worldHeight, btn.bgColor)
+  
+  const fontSize = 20
+  let maxTextWidth = worldWidth - 10  # Leaving a 5-pixel margin on each side
+  let wrappedText = wrapText(btn.text, maxTextWidth, fontSize)
+  
+  let lineHeight: int32 = fontSize + 2  # Adding 2 pixels of vertical spacing between lines
+  let totalTextHeight = int32(wrappedText.len * lineHeight)
+  var startY = worldY + (worldHeight - totalTextHeight) div 2  # Vertically center the text
+  
+  for line in wrappedText:
+    let lineWidth = measureText(line, fontSize)
+    let startX = worldX + (worldWidth - lineWidth) div 2  # Horizontally center each line
+    drawText(line, startX, startY, fontSize, btn.textColor)
+    startY += lineHeight

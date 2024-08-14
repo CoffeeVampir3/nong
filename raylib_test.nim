@@ -41,8 +41,10 @@ proc main() =
       width: 0.125,
       height: 0.15625,
       text: "Ligma",
-      textColor: Black,
-      bgColor: Red,
+      textColor: Green,
+      bgColor: Black,
+      onClick: proc () =
+        echo "A!"
     ))
 
     btns.add(RectButton(
@@ -51,8 +53,10 @@ proc main() =
       width: 0.125,
       height: 0.15625,
       text: "+8 to sucking dick",
-      textColor: Yellow,
-      bgColor: Red,
+      textColor: Green,
+      bgColor: Black,
+      onClick: proc () =
+        echo "B!"
     ))
 
     btns.add(RectButton(
@@ -60,9 +64,24 @@ proc main() =
       y: 0.5 - 0.390625,
       width: 0.125,
       height: 0.15625,
-      text: "More balls",
+      text: "10 More balls",
       textColor: Green,
-      bgColor: Red,
+      bgColor: Black,
+      onClick: proc () =
+        for i in 1..10:
+            var ball = Ball(
+            x: rand(0.5),
+            y: rand(0.5),
+            radius: 0.02,
+            color: Color(
+                r: uint8(rand(256)), 
+                g: uint8(rand(256)), 
+                b: uint8(rand(256)), 
+                a: 255)
+            )
+            (ball.speedX, ball.speedY) = randomVelocity()
+            balls.add(ball)
+        paused = false
     ))
 
     for i in 1..1:
@@ -99,11 +118,11 @@ proc main() =
                         height: btn.height
                     )
                     if checkCollisionPointRec(mousePos, rect):
-                        echo(btn.text)
+                        btn.onClick()
 
 
         beginDrawing()
-        clearBackground(if not paused: RayWhite else: Black)
+        clearBackground(RayWhite)
 
         # Draw paddle
         drawRectangle(
@@ -126,7 +145,6 @@ proc main() =
         if paused:
             for btn in btns:
                 drawButton(btn, screenWidth, screenHeight)
-
 
         endDrawing()
 

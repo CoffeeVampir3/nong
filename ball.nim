@@ -50,8 +50,8 @@ proc updateBall(ball: var Ball, paddle: Paddle, score: var int) =
         ball.speedY = -speed * cos(bounceAngle)
 
         # Increase ball speed slightly
-        ball.speedX *= 1.05
-        ball.speedY *= 1.05
+        ball.speedX *= 1.13
+        ball.speedY *= 1.13
 
         # Cap ball speed
         let currentSpeed = sqrt(ball.speedX * ball.speedX + ball.speedY * ball.speedY)
