@@ -9,97 +9,127 @@ import rectangle_button
 # ANYONE CAUGHT READING IS GUILTY OF THOUGHT CRIMES AND HEREBY SENTENCED TO DEATH
 
 const
-  screenWidth = 1920
-  screenHeight = 1080
+    screenWidth = 1920
+    screenHeight = 1080
 
 var
-  paused = false
+    paused = false
 
-proc normalGameLoop(balls: var seq[Ball], paddle: var Paddle, score: var int, screenWidth, screenHeight: int) =
-  # Update
-  if isKeyDown(KeyboardKey.Left) and paddle.x > 0:
-    paddle.x -= 0.00625
-  if isKeyDown(KeyboardKey.Right) and paddle.x < 1.0 - paddle.width:
-    paddle.x += 0.00625
-  if isKeyPressed(KeyboardKey.Space):
-    paused = true
-  updateBalls(balls, paddle, score)
+proc normalGameLoop(balls: var seq[Ball], paddle: var Paddle, score: var int,
+  screenWidth, screenHeight: int) =
+    if isKeyDown(KeyboardKey.Left) and paddle.x > 0:
+        paddle.x -= 0.00625
+    if isKeyDown(KeyboardKey.Right) and paddle.x < 1.0 - paddle.width:
+        paddle.x += 0.00625
+    if isKeyPressed(KeyboardKey.Space):
+        paused = true
+    updateBalls(balls, paddle, score)
 
 proc main() =
-  initWindow(screenWidth, screenHeight, "Deez Nuts")
-  setTargetFPS(60)
+    initWindow(screenWidth, screenHeight, "Deez Nuts")
+    setTargetFPS(60)
 
-  var
-    paddle = Paddle(x: 0.5, y: 0.9, width: 0.1, height: 0.0325)
-    balls: seq[Ball]
-    score = 0
+    var
+        paddle = Paddle(x: 0.5, y: 0.9, width: 0.1, height: 0.0325)
+        balls: seq[Ball]
+        btns: seq[RectButton]
+        score = 0
 
-  const btn = RectButton(
-    x: 0.5 - 0.0625,
-    y: 0.5,
-    width: 0.125,
-    height: 0.15625,
-    text: "Ligma",
-    textColor: Black,
-    bgColor: Red,
-  )
-  const btn2 = RectButton(
-    x: 0.5 - 0.0625,
-    y: 0.5 - 0.1953125,
-    width: 0.125,
-    height: 0.15625,
-    text: "+8 to sucking dick",
-    textColor: Yellow,
-    bgColor: Red,
-  )
-  const btn3 = RectButton(
-    x: 0.5 - 0.0625,
-    y: 0.5 - 0.390625,
-    width: 0.125,
-    height: 0.15625,
-    text: "More balls",
-    textColor: Green,
-    bgColor: Red,
-  )
+    btns.add(RectButton(
+      x: 0.5 - 0.0625,
+      y: 0.5,
+      width: 0.125,
+      height: 0.15625,
+      text: "Ligma",
+      textColor: Black,
+      bgColor: Red,
+    ))
 
-  for i in 1..1:
-    var ball = Ball(
-      x: rand(0.5),
-      y: rand(0.5),
-      radius: 0.02,  # ballSize / (2 * screenWidth)
-      color: Color(r: uint8(rand(256)), g: uint8(rand(256)), b: uint8(rand(256)), a: 255)
-    )
-    (ball.speedX, ball.speedY) = randomVelocity()
-    balls.add(ball)
+    btns.add(RectButton(
+      x: 0.5 - 0.0625,
+      y: 0.5 - 0.1953125,
+      width: 0.125,
+      height: 0.15625,
+      text: "+8 to sucking dick",
+      textColor: Yellow,
+      bgColor: Red,
+    ))
 
-  while not windowShouldClose():
-    if not paused:
-      normalGameLoop(balls, paddle, score, screenWidth, screenHeight)
-    else:
-      if isKeyPressed(KeyboardKey.Space):
-        paused = false
+    btns.add(RectButton(
+      x: 0.5 - 0.0625,
+      y: 0.5 - 0.390625,
+      width: 0.125,
+      height: 0.15625,
+      text: "More balls",
+      textColor: Green,
+      bgColor: Red,
+    ))
 
-    beginDrawing()
-    clearBackground(if not paused: RayWhite else: Black)
-    
-    # Draw paddle
-    drawRectangle(int32(paddle.x * screenWidth), int32(paddle.y * screenHeight), 
-                  int32(paddle.width * screenWidth), int32(paddle.height * screenHeight), Black)
-    
-    # Draw balls
-    for ball in balls:
-      drawCircle(int32(ball.x * screenWidth), int32(ball.y * screenHeight), 
-                 ball.radius * screenWidth, ball.color)
-    
-    drawText("Score: " & $score, 10, 10, 20, Black)
-    
-    if paused:
-      drawButton(btn, screenWidth, screenHeight)
-      drawButton(btn2, screenWidth, screenHeight)
-      drawButton(btn3, screenWidth, screenHeight)
-    
-    endDrawing()
+    for i in 1..1:
+        var ball = Ball(
+          x: rand(0.5),
+          y: rand(0.5),
+          radius: 0.02,
+          color: Color(
+            r: uint8(rand(256)), 
+            g: uint8(rand(256)), 
+            b: uint8(rand(256)), 
+            a: 255)
+        )
+        (ball.speedX, ball.speedY) = randomVelocity()
+        balls.add(ball)
 
-  closeWindow()
+    while not windowShouldClose():
+        if not paused:
+            normalGameLoop(balls, paddle, score, screenWidth, screenHeight)
+        else:
+            if isKeyPressed(KeyboardKey.Space):
+                paused = false
+
+            # BUTTON IMPL
+            if isMouseButtonPressed(MouseButton.Left):
+                var mousePos = getMousePosition()
+                mousePos.x /= screenWidth;
+                mousePos.y /= screenHeight;
+                for btn in btns:
+                    var rect = Rectangle(
+                        x: btn.x,
+                        y: btn.y,
+                        width: btn.width,
+                        height: btn.height
+                    )
+                    if checkCollisionPointRec(mousePos, rect):
+                        echo(btn.text)
+
+
+        beginDrawing()
+        clearBackground(if not paused: RayWhite else: Black)
+
+        # Draw paddle
+        drawRectangle(
+          int32(paddle.x * screenWidth), int32(paddle.y * screenHeight),
+          int32(paddle.width * screenWidth), int32(paddle.height *
+          screenHeight), Black
+        )
+
+        # Draw balls
+        for ball in balls:
+            drawCircle(
+              int32(ball.x * screenWidth),
+              int32(ball.y * screenHeight),
+              ball.radius * screenWidth,
+              ball.color
+            )
+
+        drawText("Score: " & $score, 10, 10, 20, Black)
+
+        if paused:
+            for btn in btns:
+                drawButton(btn, screenWidth, screenHeight)
+
+
+        endDrawing()
+
+    closeWindow()
 
 main()
