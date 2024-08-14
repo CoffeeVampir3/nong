@@ -18,9 +18,9 @@ var
 proc normalGameLoop(balls: var seq[Ball], paddle: var Paddle, score: var int,
   screenWidth, screenHeight: int) =
     if isKeyDown(KeyboardKey.Left) and paddle.x > 0:
-        paddle.x -= 0.00625
+        paddle.x -= paddle.speed
     if isKeyDown(KeyboardKey.Right) and paddle.x < 1.0 - paddle.width:
-        paddle.x += 0.00625
+        paddle.x += paddle.speed
     if isKeyPressed(KeyboardKey.Space):
         paused = true
     updateBalls(balls, paddle, score)
@@ -30,7 +30,7 @@ proc main() =
     setTargetFPS(60)
 
     var
-        paddle = Paddle(x: 0.5, y: 0.9, width: 0.1, height: 0.0325)
+        paddle = Paddle(x: 0.5, y: 0.9, width: 0.1, height: 0.0325, speed: 0.00625)
         balls: seq[Ball]
         btns: seq[RectButton]
         score = 0
@@ -52,11 +52,12 @@ proc main() =
       y: 0.5 - 0.1953125,
       width: 0.125,
       height: 0.15625,
-      text: "+8 to sucking dick",
+      text: "Paddle +8 width -2 speed",
       textColor: Green,
       bgColor: Black,
       onClick: proc () =
-        echo "B!"
+        paddle.width += 0.02
+        paddle.speed += (0.00625 / 32)
     ))
 
     btns.add(RectButton(
@@ -81,7 +82,6 @@ proc main() =
             )
             (ball.speedX, ball.speedY) = randomVelocity()
             balls.add(ball)
-        paused = false
     ))
 
     for i in 1..1:
@@ -119,6 +119,7 @@ proc main() =
                     )
                     if checkCollisionPointRec(mousePos, rect):
                         btn.onClick()
+                        paused = false
 
 
         beginDrawing()
