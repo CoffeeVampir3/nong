@@ -1,8 +1,13 @@
 import raylib
+import math
 import std/random
+import sequtils
 import ball
 import paddle
 import rectangle_button
+import strformat
+import gamestate
+import ball_system
 
 # NOTE TO THE THEORETICAL COMMUNISTS READING THIS REMORSEFUL MESSAGE
 # THE PATRIOTS HAVE STORMED THE GATES, ALL MEASUREMENTS ARE THEREFORE NORMALIZED TO SCREEN DIMENSIONS
@@ -15,76 +20,85 @@ const
 var
     paused = false
 
-proc normalGameLoop(balls: var seq[Ball], paddle: var Paddle, score: var int,
-  screenWidth, screenHeight: int) =
-    if isKeyDown(KeyboardKey.Left) and paddle.x > 0:
-        paddle.x -= paddle.speed
-    if isKeyDown(KeyboardKey.Right) and paddle.x < 1.0 - paddle.width:
-        paddle.x += paddle.speed
+type
+    Ability = tuple[text: string, ability: proc(state: GameState) {.closure.}]
+
+proc lerp[T: SomeNumber](a, b: T, t: float): T =
+    return a + (b - a) * T(t)
+
+proc weightedRandomSelection(abilities: seq[Ability], maxSelect: int = 3): seq[Ability] =
+    var availableAbilities = abilities
+    let numToSelect = rand(1.0)
+    let selectCount = if numToSelect < 0.7: 1
+                        elif numToSelect < 0.9: 2
+                        else: 3
+
+    result = @[]
+    let actualSelectCount = min(min(selectCount, maxSelect), availableAbilities.len)
+    for i in 1..actualSelectCount:
+        let idx = rand(availableAbilities.len - 1)
+        result.add(availableAbilities[idx])
+        availableAbilities.del(idx)
+
+proc initializeButtons(state: GameState): seq[RectButton] =
+    result = @[]
+
+    let ability_list: seq[Ability] = @[
+        ("Zoomier Balls", proc(state: GameState) {.closure.} = state.maxBallSpeed += 0.00625 * 0.5),
+        ("Score is all that matters.", proc(state: GameState) {.closure.} = state.scoreMult += 0.17),
+        ("Paddle fast as fuck boiiii", proc(state: GameState) {.closure.} = state.paddle.speed += 0.00625),
+        ("Paddle got dat dumpy tho", proc(state: GameState) {.closure.} = state.paddle.width += 0.025),
+        ("We ball.", proc(state: GameState) {.closure.} = state.maxBalls += 1)
+    ]
+
+    proc makeBtn(state: GameState, yoffset: float): RectButton =
+        let selected = weightedRandomSelection(ability_list)
+        var finalText = ""
+        for i, ability in selected:
+            if i > 0:
+                finalText.add(" \n AND \n ")
+            finalText.add(ability.text)
+
+        result = RectButton(
+            x: 0.5 - 0.0625,
+            y: 0.5 - yoffset,
+            width: 0.125,
+            height: 0.15625,
+            text: finalText,
+            textColor: Green,
+            bgColor: Black,
+            onClick: proc() =
+                for ability in selected:
+                    ability.ability(state)
+        )
+
+    result = @[]
+    for i in 0..2:  # Create 3 buttons
+        result.add(makeBtn(state, float(i) * 0.1953125))
+
+proc normalGameLoop(state: GameState, btns: var seq[RectButton], screenWidth, screenHeight: int) =
+    if isKeyDown(KeyboardKey.Left) and state.paddle.x > 0:
+        state.paddle.x -= state.paddle.speed
+    if isKeyDown(KeyboardKey.Right) and state.paddle.x < 1.0 - state.paddle.width:
+        state.paddle.x += state.paddle.speed
     if isKeyPressed(KeyboardKey.Space):
+        btns = initializeButtons(state)
         paused = true
-    updateBalls(balls, paddle, score)
+    updateBalls(state)
 
 proc main() =
     initWindow(screenWidth, screenHeight, "Deez Nuts")
     setTargetFPS(60)
 
+    var state = GameState(
+        paddle: Paddle(x: 0.5, y: 0.9, width: 0.1, height: 0.0325, speed: 0.00625),
+        balls: @[],
+    )
     var
-        paddle = Paddle(x: 0.5, y: 0.9, width: 0.1, height: 0.0325, speed: 0.00625)
-        balls: seq[Ball]
         btns: seq[RectButton]
-        score = 0
+        displayScore: float = 0.0
 
-    btns.add(RectButton(
-      x: 0.5 - 0.0625,
-      y: 0.5,
-      width: 0.125,
-      height: 0.15625,
-      text: "Ligma",
-      textColor: Green,
-      bgColor: Black,
-      onClick: proc () =
-        echo "A!"
-    ))
-
-    btns.add(RectButton(
-      x: 0.5 - 0.0625,
-      y: 0.5 - 0.1953125,
-      width: 0.125,
-      height: 0.15625,
-      text: "Paddle +8 width -2 speed",
-      textColor: Green,
-      bgColor: Black,
-      onClick: proc () =
-        paddle.width += 0.02
-        paddle.speed += (0.00625 / 32)
-    ))
-
-    btns.add(RectButton(
-      x: 0.5 - 0.0625,
-      y: 0.5 - 0.390625,
-      width: 0.125,
-      height: 0.15625,
-      text: "10 More balls",
-      textColor: Green,
-      bgColor: Black,
-      onClick: proc () =
-        for i in 1..10:
-            var ball = Ball(
-            x: rand(0.5),
-            y: rand(0.5),
-            radius: 0.02,
-            color: Color(
-                r: uint8(rand(256)), 
-                g: uint8(rand(256)), 
-                b: uint8(rand(256)), 
-                a: 255)
-            )
-            (ball.speedX, ball.speedY) = randomVelocity()
-            balls.add(ball)
-    ))
-
-    for i in 1..1:
+    for i in 1..state.maxBalls:
         var ball = Ball(
           x: rand(0.5),
           y: rand(0.5),
@@ -96,11 +110,15 @@ proc main() =
             a: 255)
         )
         (ball.speedX, ball.speedY) = randomVelocity()
-        balls.add(ball)
+        state.balls.add(ball)
 
+    initAudioDevice()
+    var music = loadMusicStream("Game music or something.mp3")
+    playMusicStream(music)
     while not windowShouldClose():
+        updateMusicStream(music)
         if not paused:
-            normalGameLoop(balls, paddle, score, screenWidth, screenHeight)
+            normalGameLoop(state, btns, screenWidth, screenHeight)
         else:
             if isKeyPressed(KeyboardKey.Space):
                 paused = false
@@ -123,25 +141,49 @@ proc main() =
 
 
         beginDrawing()
-        clearBackground(RayWhite)
+        clearBackground(Color(
+                    r: uint8(200), 
+                    g: uint8(200), 
+                    b: uint8(200), 
+                    a: 255))
 
         # Draw paddle
         drawRectangle(
-          int32(paddle.x * screenWidth), int32(paddle.y * screenHeight),
-          int32(paddle.width * screenWidth), int32(paddle.height *
+          int32(state.paddle.x * screenWidth), int32(state.paddle.y * screenHeight),
+          int32(state.paddle.width * screenWidth), int32(state.paddle.height *
           screenHeight), Black
         )
 
         # Draw balls
-        for ball in balls:
+        for ball in state.balls:
             drawCircle(
-              int32(ball.x * screenWidth),
-              int32(ball.y * screenHeight),
-              ball.radius * screenWidth,
-              ball.color
+                int32(ball.x * screenWidth),
+                int32(ball.y * screenHeight),
+                ball.radius * screenWidth,
+                Black
             )
 
-        drawText("Score: " & $score, 10, 10, 20, Black)
+
+        # Do score stuff
+
+        proc calcTextDiff(state: GameState, displayScore: float): (float, int32) =
+            let minSize = 30.0
+            let maxSize = 400.0
+            let maxDifference = 50.0
+            
+            let scoreDifference = state.score - displayScore
+            let t = clamp(scoreDifference / maxDifference, 0.0, 1.0)
+            
+            result = (t, int32(lerp(minSize, maxSize, t)))
+        
+        let (t, diff) = calcTextDiff(state, displayScore)
+        if displayScore < state.score:
+            if state.score - displayScore < 0.1:
+                displayScore = state.score
+            else:
+                displayScore += (t * 0.365)
+
+        drawText(fmt"Score: {int(round(displayScore))}", 25, 25, diff, Black)
 
         if paused:
             for btn in btns:
@@ -149,6 +191,7 @@ proc main() =
 
         endDrawing()
 
+    closeAudioDevice()
     closeWindow()
 
 main()
