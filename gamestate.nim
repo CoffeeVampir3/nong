@@ -9,3 +9,4 @@ type
         scoreMult* = 1.0f
         maxBalls*:int = 1
         maxBallSpeed* = 0.0625
+        roundDuration* = 10.0

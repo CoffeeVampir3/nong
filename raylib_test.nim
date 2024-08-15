@@ -19,6 +19,7 @@ const
 
 var
     paused = false
+    timer = 0.0
 
 type
     Ability = tuple[text: string, ability: proc(state: GameState) {.closure.}]
@@ -62,7 +63,7 @@ proc initializeButtons(state: GameState): seq[RectButton] =
         result = RectButton(
             x: 0.5 - 0.0625,
             y: 0.5 - yoffset,
-            width: 0.125,
+            width: 0.25,
             height: 0.15625,
             text: finalText,
             textColor: Green,
@@ -73,7 +74,7 @@ proc initializeButtons(state: GameState): seq[RectButton] =
         )
 
     result = @[]
-    for i in 0..2:  # Create 3 buttons
+    for i in 0..2:
         result.add(makeBtn(state, float(i) * 0.1953125))
 
 proc normalGameLoop(state: GameState, btns: var seq[RectButton], screenWidth, screenHeight: int) =
@@ -91,32 +92,45 @@ proc main() =
     setTargetFPS(60)
 
     var state = GameState(
-        paddle: Paddle(x: 0.5, y: 0.9, width: 0.1, height: 0.0325, speed: 0.00625),
+        paddle: Paddle(x: 0.5, y: 0.9, width: 0.1, height: 0.0325, speed: 0.00975),
         balls: @[],
     )
     var
         btns: seq[RectButton]
         displayScore: float = 0.0
 
-    for i in 1..state.maxBalls:
-        var ball = Ball(
-          x: rand(0.5),
-          y: rand(0.5),
-          radius: 0.02,
-          color: Color(
-            r: uint8(rand(256)), 
-            g: uint8(rand(256)), 
-            b: uint8(rand(256)), 
-            a: 255)
-        )
-        (ball.speedX, ball.speedY) = randomVelocity()
-        state.balls.add(ball)
-
     initAudioDevice()
     var music = loadMusicStream("Game music or something.mp3")
     playMusicStream(music)
     while not windowShouldClose():
         updateMusicStream(music)
+
+        #let currentTime = getFrameTime()
+        let deltaTime = getFrameTime()
+        timer = max(timer - deltaTime, 0.0)
+
+        if timer <= 0.0:
+            timer = state.roundDuration
+            btns = initializeButtons(state)
+            paused = true
+            while state.balls.len > 0:
+                state.balls.delete(state.balls.len - 1)
+            state.balls.setLen(0)
+            for i in 1..state.maxBalls:
+                var ball = Ball(
+                x: rand(0.5),
+                y: rand(0.5),
+                radius: 0.02,
+                color: Color(
+                    r: uint8(rand(256)), 
+                    g: uint8(rand(256)), 
+                    b: uint8(rand(256)), 
+                    a: 255)
+                )
+                (ball.speedX, ball.speedY) = randomVelocity()
+                state.balls.add(ball)
+            
+
         if not paused:
             normalGameLoop(state, btns, screenWidth, screenHeight)
         else:
@@ -166,24 +180,31 @@ proc main() =
 
         # Do score stuff
 
-        proc calcTextDiff(state: GameState, displayScore: float): (float, int32) =
-            let minSize = 30.0
-            let maxSize = 400.0
-            let maxDifference = 50.0
+        if not paused:
+            proc calcTextDiff(state: GameState, displayScore: float): (float, int32) =
+                let minSize = 30.0
+                let maxSize = 400.0
+                let maxDifference = 200.0
+                
+                let scoreDifference = state.score - displayScore
+                let t = clamp(scoreDifference / maxDifference, 0.0, 1.0)
+                
+                result = (t, int32(lerp(minSize, maxSize, t)))
             
-            let scoreDifference = state.score - displayScore
-            let t = clamp(scoreDifference / maxDifference, 0.0, 1.0)
-            
-            result = (t, int32(lerp(minSize, maxSize, t)))
-        
-        let (t, diff) = calcTextDiff(state, displayScore)
-        if displayScore < state.score:
-            if state.score - displayScore < 0.1:
-                displayScore = state.score
-            else:
-                displayScore += (t * 0.365)
+            let (t, diff) = calcTextDiff(state, displayScore)
+            if displayScore < state.score:
+                if state.score - displayScore < 0.1:
+                    displayScore = state.score
+                else:
+                    displayScore += (t * 0.365)
 
-        drawText(fmt"Score: {int(round(displayScore))}", 25, 25, diff, Black)
+            drawText(fmt"Score: {int(round(displayScore))}", 25, 25, diff, Black)
+
+            # Time stuff
+            let timerText = fmt"{int(ceil(timer))}"
+            let timerFontSize:int32 = 40
+            let timerTextWidth = measureText(cstring(timerText), timerFontSize)
+            drawText(timerText, (screenWidth div 2) - timerTextWidth, int32(0.95 * screenHeight), timerFontSize, Black)
 
         if paused:
             for btn in btns:
