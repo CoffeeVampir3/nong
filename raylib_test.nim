@@ -1,7 +1,6 @@
 import raylib
 import math
 import std/random
-import sequtils
 import ball
 import paddle
 import rectangle_button
@@ -120,7 +119,7 @@ proc main() =
                 var ball = Ball(
                 x: rand(0.5),
                 y: rand(0.5),
-                radius: 0.02,
+                radius: state.ballSize,
                 color: Color(
                     r: uint8(rand(256)), 
                     g: uint8(rand(256)), 

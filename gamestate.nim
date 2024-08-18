@@ -10,3 +10,4 @@ type
         maxBalls*:int = 1
         maxBallSpeed* = 0.0625
         roundDuration* = 10.0
+        ballSize* = 0.01
